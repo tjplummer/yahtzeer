@@ -30,20 +30,38 @@ struct Players {
     players: Vec<Player>
 }
 
+impl Players {
+    fn new(players_playing: u8) -> Players {
+        let mut players: Vec<Player> = Vec::new();
+
+        for x in 0..players_playing {
+            players.push(Player::new(x, Card::new())
+            )
+        }
+
+        Players {
+            players
+        }
+    }
+}
+
 struct Player {
     id: u8,
     card: Card,
+    complete: bool
 }
 
 impl Player {
     fn new(id: u8, card: Card) -> Player {
         Player {
             id,
-            card
+            card,
+            complete: false
         }
     }
 }
 
+#[derive(Iterable)]
 struct Top {
     one: i8,
     two: i8,
@@ -66,6 +84,45 @@ impl Default for Top {
     }
 }
 
+impl Top {
+    fn one(&mut self, total: i8) {
+        self.one = total
+    }
+
+    fn two(&mut self, total: i8) {
+        self.two = total
+    }
+
+    fn three(&mut self, total: i8) {
+        self.three = total
+    }
+
+    fn four(&mut self, total: i8) {
+        self.four = total
+    }
+
+    fn five(&mut self, total: i8) {
+        self.five = total
+    }
+
+    fn six(&mut self, total: i8) {
+        self.six = total
+    }
+
+    fn total_up(&self) -> i8 {
+        let mut total = 0;
+
+        for (_param, val) in &self.iter() {
+            total += val;
+        }
+
+        if total >= 63 { total += 35 }
+
+        total
+    }
+}
+
+#[derive(Iterable)]
 struct Bottom {
     three_of_kind: i8,
     four_of_kind: i8,
@@ -92,6 +149,58 @@ impl Default for Bottom {
     }
 }
 
+impl Bottom {
+    fn three_of_kind(&mut self, succeed: bool, total: i8) {
+        if succeed { self.three_of_kind = total } else { self.three_of_kind = 0 }
+    }
+
+    fn four_of_kind(&mut self, succeed: bool, total: i8) {
+        if succeed { self.four_of_kind = total } else { self.four_of_kind = 0 }
+    }
+
+    fn full_house(&mut self, succeed: bool) {
+        if succeed { self.full_house = 25 } else { self.full_house = 0 }
+    }
+
+    fn small_straight(&mut self, succeed: bool) {
+        if succeed { self.small_straight = 30 } else { self.small_straight = 0 }
+    }
+
+    fn large_straight(&mut self, succeed: bool) {
+        if succeed { self.large_straight = 40 } else { self.large_straight = 0 }
+    }
+
+    fn yahtzee(&mut self, succeed: bool) {
+        if succeed { self.yahtzee = 50 } else { self.yahtzee = 0 }
+    }
+
+    fn bonus_yahtzee(&mut self, succeed: bool) {
+        if succeed {
+            if self.bonus_yahtzee == -1 { self.bonus_yahtzee = 100 } else { self.bonus_yahtzee += 100 }
+        } else {
+            self.bonus_yahtzee = 0
+        }
+    }
+
+    fn chance(&mut self, succeed: bool, total: i8) {
+        if succeed { self.chance = total } else { self.chance = 0 }
+    }
+}
+
+struct GameState {
+    turn: u8,
+    players: Players,
+}
+
+impl GameState {
+    fn new(players_playing: u8) -> GameState {
+        GameState {
+            turn: 0,
+            players: Players::new(players_playing)
+        }
+    }
+}
+
 #[derive(Iterable)]
 struct Card {
     top: Top,
@@ -105,14 +214,33 @@ impl Card {
             bottom: Bottom::default()
         }
     }
+
+    fn check_if_complete(&self) -> bool {
+        let mut tf = false;
+        let mut bf = false;
+
+        for (param, val) in &self.iter() {
+            for (_inner_param, inner_val) in val.iter() {
+                if (*inner_val == -1) {
+                    if param == "top" { tf = true } else { bf = false }
+                }
+            }
+        }
+
+        if tf & bf { true } else { false }
+    }
 }
 
 fn roll_dice(mut rng: ThreadRng) -> u32 {
     rng.gen_range(1..6)
 }
 
+fn default_players() -> u8 { 4 }
+
+fn default_quantity() -> u8 { 4 }
+
 #[derive(FromArgs)]
-/// Exercise in Trouble
+/// Exercise in Yahtzee
 struct Args {
     /// an optional parameter for players. Default is 4
     #[argh(option, short = 'p', default = "default_players()")]
